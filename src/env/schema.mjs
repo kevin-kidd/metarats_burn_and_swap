@@ -7,6 +7,9 @@ import { z } from "zod";
  */
 export const serverSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
+  MNEMONIC: z.string(),
+  SUPABASE_KEY: z.string(),
+  SUPABASE_URL: z.string(),
 });
 
 /**
@@ -16,6 +19,9 @@ export const serverSchema = z.object({
  */
 export const serverEnv = {
   NODE_ENV: process.env.NODE_ENV,
+  MNEMONIC: process.env.MNEMONIC,
+  SUPABASE_KEY: process.env.SUPABASE_KEY,
+  SUPABASE_URL: process.env.SUPABASE_URL,
 };
 
 /**
@@ -27,6 +33,10 @@ export const clientSchema = z.object({
   NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS: z.string(),
   NEXT_PUBLIC_SECRET_CONTRACT_HASH: z.string(),
   NEXT_PUBLIC_SECRET_CHAIN_ID: z.string(),
+  NEXT_PUBLIC_STARGAZE_MINTER: z.string(),
+  NEXT_PUBLIC_STARGAZE_SG721: z.string(),
+  NEXT_PUBLIC_SECRET_REST_URL: z.string(),
+  NEXT_PUBLIC_STARGAZE_RPC_URL: z.string(),
 });
 
 /**
@@ -41,4 +51,8 @@ export const clientEnv = {
   NEXT_PUBLIC_SECRET_CONTRACT_HASH:
     process.env.NEXT_PUBLIC_SECRET_CONTRACT_HASH,
   NEXT_PUBLIC_SECRET_CHAIN_ID: process.env.NEXT_PUBLIC_SECRET_CHAIN_ID,
+  NEXT_PUBLIC_STARGAZE_MINTER: process.env.NEXT_PUBLIC_STARGAZE_MINTER,
+  NEXT_PUBLIC_STARGAZE_SG721: process.env.NEXT_PUBLIC_STARGAZE_SG721,
+  NEXT_PUBLIC_SECRET_REST_URL: process.env.NEXT_PUBLIC_SECRET_REST_URL,
+  NEXT_PUBLIC_STARGAZE_RPC_URL: process.env.NEXT_PUBLIC_STARGAZE_RPC_URL,
 };

@@ -1,52 +1,69 @@
 import { Button } from "@chakra-ui/react";
 import classNames from "classnames";
 import { useState } from "react";
-import { Permit, SecretNetworkClient } from "secretjs";
+import { SecretNetworkClient } from "secretjs";
+import { useToast } from "@chakra-ui/react";
 import { env } from "../env/client.mjs";
 import { useWalletStore } from "../stores/walletStore";
 
 export const ConnectCard = () => {
   const { address, client, permit } = useWalletStore((state) => state);
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const connect = async () => {
-    setLoading(true);
-    const sleep = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
-    while (
-      !window.keplr ||
-      !window.getEnigmaUtils ||
-      !window.getOfflineSignerOnlyAmino
-    ) {
-      await sleep(50);
+    try {
+      setLoading(true);
+      const sleep = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
+      while (
+        !window.keplr ||
+        !window.getEnigmaUtils ||
+        !window.getOfflineSignerOnlyAmino
+      ) {
+        await sleep(50);
+      }
+      const CHAIN_ID = env.NEXT_PUBLIC_SECRET_CHAIN_ID;
+      await window.keplr.enable(CHAIN_ID);
+      const keplrOfflineSigner =
+        window.keplr.getOfflineSignerOnlyAmino(CHAIN_ID);
+      const accounts = await keplrOfflineSigner.getAccounts();
+      const myAddress = accounts[0]?.address as string;
+      if (!myAddress) {
+        console.error("Failed to grab address from Keplr!");
+        return;
+      }
+      const secretjs = new SecretNetworkClient({
+        url: "https://lcd.secret.express/",
+        chainId: CHAIN_ID,
+        wallet: keplrOfflineSigner,
+        walletAddress: myAddress,
+        encryptionUtils: window.keplr.getEnigmaUtils(CHAIN_ID),
+      });
+      // Get permit
+      const newPermit = await secretjs.utils.accessControl.permit.sign(
+        myAddress,
+        CHAIN_ID,
+        "MetaRats Burn & Swap",
+        [env.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS],
+        ["owner"],
+        true
+      );
+      permit.set(newPermit);
+      address.set(myAddress);
+      client.set(secretjs);
+    } catch (error) {
+      console.error(error);
+      let errorMsg = "An unexpected error occurred. Please try again.";
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      toast({
+        description: errorMsg,
+        status: "error",
+        duration: 9000,
+        isClosable: true,
+      });
     }
-    const CHAIN_ID = env.NEXT_PUBLIC_SECRET_CHAIN_ID;
-    await window.keplr.enable(CHAIN_ID);
-    const keplrOfflineSigner = window.keplr.getOfflineSignerOnlyAmino(CHAIN_ID);
-    const accounts = await keplrOfflineSigner.getAccounts();
-    const myAddress = accounts[0]?.address as string;
-    if (!myAddress) {
-      console.error("Failed to grab address from Keplr!");
-      return;
-    }
-    const secretjs = new SecretNetworkClient({
-      url: "https://lcd.secret.express/",
-      chainId: CHAIN_ID,
-      wallet: keplrOfflineSigner,
-      walletAddress: myAddress,
-      encryptionUtils: window.keplr.getEnigmaUtils(CHAIN_ID),
-    });
-    // Get permit
-    const newPermit = await secretjs.utils.accessControl.permit.sign(
-      myAddress,
-      CHAIN_ID,
-      "MetaRats Burn & Swap",
-      [env.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS],
-      ["owner"],
-      true
-    );
-    permit.set(newPermit);
-    address.set(myAddress);
-    client.set(secretjs);
     setLoading(false);
   };
   return (
