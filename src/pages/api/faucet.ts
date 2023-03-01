@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
@@ -18,7 +13,7 @@ const collectionSize = 3261;
 const getSecretClient = () => {
   const wallet = new Wallet(serverEnv.MNEMONIC);
   return new SecretNetworkClient({
-    chainId: "pulsar-2",
+    chainId: clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID,
     url: clientEnv.NEXT_PUBLIC_SECRET_REST_URL,
     wallet: wallet,
     walletAddress: wallet.address,
@@ -38,7 +33,8 @@ const checkAddress = async (
     throw new Error("Error checking address");
   }
   if (data[0] && data[0].created_at) {
-    const days = moment().diff(moment(data[0].created_at), "days");
+    const createdAt: string = data[0].created_at as string;
+    const days = moment().diff(moment(createdAt), "days");
     if (days < 1) {
       throw new Error("You may only use the faucet once every 24 hours.");
     }
@@ -68,7 +64,7 @@ const faucet = async (req: NextApiRequest, res: NextApiResponse) => {
     if (clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID !== "pulsar-2") {
       throw new Error("Faucet is only available on testnet.");
     }
-    const body: { address: string } = req.body;
+    const body: RequestBody = req.body as RequestBody;
     if (!body || !body.address) {
       throw new Error("Missing address");
     }
@@ -108,6 +104,7 @@ const faucet = async (req: NextApiRequest, res: NextApiResponse) => {
       gasLimit: 1_000_000,
     });
     if (batchMintTx.code !== 0) {
+      console.log(batchMintTx);
       console.error("Error minting tokens", batchMintTx.rawLog);
       throw new Error("Error minting tokens");
     }
@@ -145,6 +142,10 @@ type MintMsg = {
   public_metadata: {
     extension: Extension;
   };
+};
+
+type RequestBody = {
+  address: string;
 };
 
 export default faucet;

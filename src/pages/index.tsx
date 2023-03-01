@@ -5,7 +5,7 @@ import HeroText from "../../public/hero_text.webp";
 import background from "../../public/background.webp";
 import Image from "next/image";
 import { useWalletStore } from "../stores/walletStore";
-import { TransferCard } from "../components/TransferCard";
+import { SwapCard } from "../components/SwapCard";
 
 const Home: NextPage = () => {
   const client = useWalletStore((state) => state.client);
@@ -24,7 +24,7 @@ const Home: NextPage = () => {
         />
         <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
           <Image src={HeroText} alt="MetaRats Burn & Swap" className="w-1/2" />
-          {client.value ? <TransferCard /> : <ConnectCard />}
+          {client.value ? <SwapCard /> : <ConnectCard />}
         </div>
       </main>
     </>

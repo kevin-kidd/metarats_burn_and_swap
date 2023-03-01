@@ -1,154 +1,200 @@
+import { env as clientEnv } from "../../env/client.mjs";
+import { NextApiRequest, NextApiResponse } from "next";
+import {
+  DirectSecp256k1HdWallet,
+  GasPrice,
+  SigningCosmWasmClient,
+  toUtf8,
+} from "cosmwasm";
+import { env as serverEnv } from "../../env/server.mjs";
+import { SecretNetworkClient, Wallet } from "secretjs";
+import { createClient } from "@supabase/supabase-js";
+import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 
-// const checkTokenMinted = async (
-//   tokenId: string,
-//   supabaseClient: SupabaseClient,
-//   stargazeClient: SigningCosmWasmClient
-// ) => {
-//   // Check supabase DB
-//   const { data, error } = await supabaseClient
-//     .from("minted_tokens")
-//     .select()
-//     .eq("token_id", tokenId);
-//   if (error) {
-//     console.error("Error checking token", error.message);
-//     return { error: "Error checking token" };
-//   }
-//   if (data[0] && data[0].token_id) {
-//     return { error: "Token already minted" };
-//   }
-//   // Check stargaze contract
-//   const tokenInfo = await stargazeClient.queryContractSmart(
-//     clientEnv.NEXT_PUBLIC_STARGAZE_SG721,
-//     {
-//       nft_info: {
-//         token_id: tokenId,
-//       },
-//     }
-//   );
-//   console.log(tokenInfo);
-//   return { success: true };
-// };
+const swap = async (req: NextApiRequest, res: NextApiResponse) => {
+  try {
+    if (clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID !== "pulsar-2") {
+      throw new Error("Faucet is only available on testnet.");
+    }
+    const body: RequestBody = req.body as RequestBody;
+    if (!body || !body.secretAddress || !body.stargazeAddress) {
+      throw new Error("Missing address");
+    }
+    const stargazeClient = await getStargazeClient();
+    const secretClient = getSecretClient();
+    const supabaseClient = createClient(
+      serverEnv.SUPABASE_URL,
+      serverEnv.SUPABASE_KEY
+    );
+    const permit = await secretClient.utils.accessControl.permit.sign(
+      clientEnv.NEXT_PUBLIC_SECRET_BACKEND_ADDRESS,
+      clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID,
+      "Transaction History",
+      [clientEnv.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS],
+      ["owner"],
+      false
+    );
+    // Get transaction history
+    const txHistory: TransactionHistory =
+      await secretClient.query.compute.queryContract({
+        contract_address: clientEnv.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS,
+        code_hash: clientEnv.NEXT_PUBLIC_SECRET_CONTRACT_HASH,
+        query: {
+          with_permit: {
+            permit: permit,
+            query: {
+              transaction_history: {
+                address: body.secretAddress,
+                page_size: 300,
+              },
+            },
+          },
+        },
+      });
+    if (txHistory.transaction_history.txs.length === 0) {
+      throw new Error(
+        `Transaction history for address ${body.secretAddress} is empty.`
+      );
+    }
+    const burnTxs = txHistory.transaction_history.txs.filter((transaction) =>
+      transaction.action.hasOwnProperty("burn")
+    );
+    if (burnTxs.length === 0) {
+      throw new Error(
+        `Did not find any burn transactions for ${body.secretAddress}.`
+      );
+    }
+    // Check which have not been swapped in DB
+    const { data, error } = await supabaseClient
+      .from("swapped_tokens")
+      .select()
+      .filter(
+        "token_id",
+        "in",
+        `(${burnTxs.map((tx) => JSON.stringify(tx.token_id)).join()})`
+      );
+    if (error) throw new Error("Internal server error");
+    const eligibleTokens = burnTxs
+      .map((tx) => tx.token_id)
+      .filter(
+        (tokenId) => !data.some((row) => row.token_id === parseInt(tokenId))
+      );
+    if (eligibleTokens.length === 0) {
+      throw new Error("No eligible tokens found for " + body.secretAddress);
+    }
+    // Mint the new tokens on Stargaze
+    const mintMsgs = [];
+    for (const tokenId of eligibleTokens) {
+      mintMsgs.push({
+        typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
+        value: MsgExecuteContract.fromPartial({
+          sender: clientEnv.NEXT_PUBLIC_STARGAZE_BACKEND_ADDRESS,
+          contract: clientEnv.NEXT_PUBLIC_STARGAZE_MINTER,
+          msg: toUtf8(
+            JSON.stringify({
+              mint_for: {
+                token_id: Number(tokenId),
+                recipient: body.stargazeAddress,
+              },
+            })
+          ),
+          funds: [],
+        }),
+      });
+    }
+    const tx = await stargazeClient.signAndBroadcast(
+      clientEnv.NEXT_PUBLIC_STARGAZE_BACKEND_ADDRESS,
+      mintMsgs,
+      "auto"
+    );
+    if (tx.code !== 0) {
+      throw new Error(
+        `Failed to mint tokens for address ${body.stargazeAddress}`
+      );
+    }
+    // Add to database
+    const { error: insertError } = await supabaseClient
+      .from("swapped_tokens")
+      .insert(
+        eligibleTokens.map((tokenId) => ({
+          token_id: tokenId,
+          address: body.secretAddress,
+        }))
+      );
+    if (insertError) {
+      console.error("Error inserting in to the database.");
+    }
+    // Return all newly minted tokens
+    return res.status(200).json({ tokens: eligibleTokens });
+  } catch (error) {
+    console.error(error);
+    if (error instanceof Error) {
+      return res.status(500).send(error.message);
+    }
+    return res.status(500).send("Internal server error");
+  }
+};
 
-   // Check token minted
-//    const { error: mintedError, success: mintedSuccess } =
-//    await checkTokenMinted(body.tokenId, supabaseClient, stargazeClient);
-//  if (mintedError || !mintedSuccess) {
-//    return res.status(400).json({ error: mintedError });
-//  }
+const getStargazeClient = async () => {
+  const wallet = await DirectSecp256k1HdWallet.fromMnemonic(
+    serverEnv.MNEMONIC,
+    {
+      prefix: "stars",
+    }
+  );
+  return await SigningCosmWasmClient.connectWithSigner(
+    clientEnv.NEXT_PUBLIC_STARGAZE_RPC_URL,
+    wallet,
+    {
+      gasPrice: GasPrice.fromString("0ustars"),
+    }
+  );
+};
 
-// if (
-//    !(await checkTokenReceived(
-//      body.tokenId,
-//      body.address,
-//      secretClient,
-//      permit
-//    ))
-//  ) {
-//    return res.status(400).json({ error: "Invalid token" });
-//  }
+const getSecretClient = () => {
+  const wallet = new Wallet(serverEnv.MNEMONIC);
+  return new SecretNetworkClient({
+    chainId: clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID,
+    url: clientEnv.NEXT_PUBLIC_SECRET_REST_URL,
+    wallet: wallet,
+    walletAddress: wallet.address,
+  });
+};
 
+type TransactionHistory = {
+  transaction_history: {
+    total: number;
+    txs: Array<{
+      tx_id: number;
+      block_height: number;
+      token_id: string;
+      action:
+        | {
+            transfer: {
+              from: string;
+              sender: string;
+              recipient: string;
+            };
+          }
+        | {
+            mint: {
+              minter: string;
+              recipient: string;
+            };
+          }
+        | {
+            burn: {
+              owner: string;
+              burner: string;
+            };
+          };
+    }>;
+  };
+};
 
- // Mint token to address
-//  const mintMsg = {
-//    mint_to: {
-//      token_id: body.tokenId,
-//      owner: body.address,
-//    },
-//  };
-//  const tx = await stargazeClient.signAndBroadcast(
-//    stargazeAddress,
-//    [mintMsg],
-//    clientEnv.NEXT_PUBLIC_STARGAZE_MINTER,
-//    "auto"
-//  );
-//  if (tx.code !== 0) {
-//    console.error(`Failed to mint token ${body.tokenId}`, tx);
-//    return res.status(500).json({ error: "Internal server error" });
-//  }
+type RequestBody = {
+  secretAddress: string;
+  stargazeAddress: string;
+};
 
-// const checkTokenReceived = async (
-//    tokenId: string,
-//    address: string,
-//    client: SecretNetworkClient,
-//    permit: Permit
-//  ) => {
-//    // Query the token transfer history
-//    const transactionHistory: TransactionHistoryResponse =
-//      await client.query.compute.queryContract({
-//        contract_address: clientEnv.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS,
-//        code_hash: clientEnv.NEXT_PUBLIC_SECRET_CONTRACT_HASH,
-//        query: {
-//          with_permit: {
-//            query: {
-//              transaction_history: {
-//                address: client.address,
-//                page_size: 30,
-//              },
-//            },
-//            permit: permit,
-//          },
-//        },
-//      });
-//    if (transactionHistory.transaction_history.txs.length > 0) {
-//      const transactions = transactionHistory.transaction_history.txs as Tx[];
-//      if (
-//        transactions.some((transaction: Tx) => {
-//          const transferDetails: TransferType =
-//            transaction.action as TransferType;
-//          if (
-//            transferDetails.transfer &&
-//            transferDetails.transfer.from === address
-//          ) {
-//            return transaction.token_id === tokenId;
-//          }
-//          return false;
-//        })
-//      ) {
-//        return true;
-//      } else {
-//        console.error(
-//          `Address does not match (${address})`,
-//          transactionHistory.transaction_history.txs
-//        );
-//      }
-//    } else {
-//      return false;
-//    }
-//  };
-
-// const permit = await secretClient.utils.accessControl.permit.sign(
-//    secretClient.address,
-//    clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID,
-//    "Faucet Collection",
-//    [clientEnv.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS],
-//    ["owner"],
-//    false
-//  );
-
-
-// const getStargazeClient = async () => {
-//    const wallet = await Secp256k1HdWallet.fromMnemonic(serverEnv.MNEMONIC);
-//    const address = (await wallet.getAccounts())[0]?.address;
-//    if (!address) {
-//      throw new Error("Failed to connect to the Stargaze chain.");
-//    }
-//    return {
-//      stargazeClient: await SigningCosmWasmClient.connectWithSigner(
-//        clientEnv.NEXT_PUBLIC_STARGAZE_RPC_URL,
-//        wallet
-//      ),
-//      stargazeAddress: address,
-//    };
-//  };
-
-// type TransferType = {
-//    transfer: {
-//      from: string;
-//      sender: string;
-//      recipient: string;
-//    };
-//  };
- 
-//  interface Tx extends RichTx {
-//    token_id: string;
-//  }
+export default swap;

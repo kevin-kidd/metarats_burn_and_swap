@@ -22,35 +22,72 @@ export const ConnectCard = () => {
       ) {
         await sleep(50);
       }
-      const CHAIN_ID = env.NEXT_PUBLIC_SECRET_CHAIN_ID;
-      await window.keplr.enable(CHAIN_ID);
-      const keplrOfflineSigner =
-        window.keplr.getOfflineSignerOnlyAmino(CHAIN_ID);
-      const accounts = await keplrOfflineSigner.getAccounts();
-      const myAddress = accounts[0]?.address as string;
-      if (!myAddress) {
-        console.error("Failed to grab address from Keplr!");
-        return;
+      // Get stargaze info
+      await window.keplr.enable(env.NEXT_PUBLIC_STARGAZE_CHAIN_ID);
+      const stargazeOfflineSigner = window.keplr.getOfflineSignerOnlyAmino(
+        env.NEXT_PUBLIC_STARGAZE_CHAIN_ID
+      );
+      const stargazeAccounts = await stargazeOfflineSigner.getAccounts();
+      const stargazeAddress = stargazeAccounts[0]?.address as string;
+      if (!stargazeAddress) {
+        throw new Error("Failed to grab Secret address from Keplr!");
+      }
+      // Get Secret info
+      await window.keplr.enable(env.NEXT_PUBLIC_SECRET_CHAIN_ID);
+      const secretOfflineSigner = window.keplr.getOfflineSignerOnlyAmino(
+        env.NEXT_PUBLIC_SECRET_CHAIN_ID
+      );
+      const secretAccounts = await secretOfflineSigner.getAccounts();
+      const secretAddress = secretAccounts[0]?.address as string;
+      if (!secretAddress) {
+        throw new Error("Failed to grab Secret address from Keplr!");
       }
       const secretjs = new SecretNetworkClient({
-        url: "https://lcd.secret.express/",
-        chainId: CHAIN_ID,
-        wallet: keplrOfflineSigner,
-        walletAddress: myAddress,
-        encryptionUtils: window.keplr.getEnigmaUtils(CHAIN_ID),
+        url: env.NEXT_PUBLIC_SECRET_REST_URL,
+        chainId: env.NEXT_PUBLIC_SECRET_CHAIN_ID,
+        wallet: secretOfflineSigner,
+        walletAddress: secretAddress,
+        encryptionUtils: window.keplr.getEnigmaUtils(
+          env.NEXT_PUBLIC_SECRET_CHAIN_ID
+        ),
       });
       // Get permit
       const newPermit = await secretjs.utils.accessControl.permit.sign(
-        myAddress,
-        CHAIN_ID,
+        secretAddress,
+        env.NEXT_PUBLIC_SECRET_CHAIN_ID,
         "MetaRats Burn & Swap",
         [env.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS],
         ["owner"],
         true
       );
       permit.set(newPermit);
-      address.set(myAddress);
+      address.set({
+        secret: secretAddress,
+        stargaze: stargazeAddress,
+      });
       client.set(secretjs);
+      // Post to faucet API with address and display toast if there's an error caught
+      const response = await fetch("/api/swap", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          secretAddress: secretAddress,
+          stargazeAddress: stargazeAddress,
+        }),
+      });
+      if (response.ok) {
+        const { tokens }: { tokens: string[] } = (await response.json()) as {
+          tokens: string[];
+        };
+        if (tokens.length !== 0) {
+          toast({
+            description: `${tokens.length} burned Rats were discovered and sent to your Stargaze wallet!`,
+            status: "info",
+          });
+        }
+      }
     } catch (error) {
       console.error(error);
       let errorMsg = "An unexpected error occurred. Please try again.";

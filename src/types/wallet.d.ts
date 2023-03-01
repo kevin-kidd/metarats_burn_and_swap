@@ -6,8 +6,14 @@ export interface WalletState {
     set: (client: SecretNetworkClient) => void;
   };
   address: {
-    value: string | null;
-    set: (address: string) => void;
+    value: {
+      secret: string | null;
+      stargaze: string | null;
+    };
+    set: (addresses: {
+      secret: string | null;
+      stargaze: string | null;
+    }) => void;
   };
   permit: {
     value: Permit | null;

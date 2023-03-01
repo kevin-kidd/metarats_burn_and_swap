@@ -13,10 +13,13 @@ export const useWalletStore = create<WalletState>()(
         }),
     },
     address: {
-      value: null,
-      set: (address) =>
+      value: {
+        secret: null,
+        stargaze: null,
+      },
+      set: (addresses) =>
         set((state) => {
-          state.address.value = address;
+          state.address.value = addresses;
         }),
     },
     permit: {
