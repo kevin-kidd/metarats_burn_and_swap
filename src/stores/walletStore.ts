@@ -13,10 +13,7 @@ export const useWalletStore = create<WalletState>()(
         }),
     },
     address: {
-      value: {
-        secret: null,
-        stargaze: null,
-      },
+      value: {},
       set: (addresses) =>
         set((state) => {
           state.address.value = addresses;

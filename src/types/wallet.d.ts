@@ -7,13 +7,10 @@ export interface WalletState {
   };
   address: {
     value: {
-      secret: string | null;
-      stargaze: string | null;
+      secret?: string;
+      stargaze?: string;
     };
-    set: (addresses: {
-      secret: string | null;
-      stargaze: string | null;
-    }) => void;
+    set: (addresses: { secret: string; stargaze: string }) => void;
   };
   permit: {
     value: Permit | null;

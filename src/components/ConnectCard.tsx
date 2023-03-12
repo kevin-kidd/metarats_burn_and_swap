@@ -11,6 +11,7 @@ export const ConnectCard = () => {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const connect = async () => {
+    let secretAddress, stargazeAddress, newPermit;
     try {
       setLoading(true);
       const sleep = (ms: number) =>
@@ -22,13 +23,52 @@ export const ConnectCard = () => {
       ) {
         await sleep(50);
       }
+      if (env.NEXT_PUBLIC_SECRET_CHAIN_ID === "pulsar-2") {
+        await window.keplr.experimentalSuggestChain({
+          chainId: env.NEXT_PUBLIC_SECRET_CHAIN_ID,
+          chainName: "Secret Pulsar Testnet",
+          rpc: env.NEXT_PUBLIC_SECRET_RPC_URL,
+          rest: env.NEXT_PUBLIC_SECRET_REST_URL,
+          bip44: {
+            coinType: 529,
+          },
+          bech32Config: {
+            bech32PrefixAccAddr: "secret",
+            bech32PrefixAccPub: "secret" + "pub",
+            bech32PrefixValAddr: "secret" + "valoper",
+            bech32PrefixValPub: "secret" + "valoperpub",
+            bech32PrefixConsAddr: "secret" + "valcons",
+            bech32PrefixConsPub: "secret" + "valconspub",
+          },
+          currencies: [
+            {
+              coinDenom: "SCRT",
+              coinMinimalDenom: "uscrt",
+              coinDecimals: 6,
+            },
+          ],
+          feeCurrencies: [
+            {
+              coinDenom: "SCRT",
+              coinMinimalDenom: "uscrt",
+              coinDecimals: 6,
+            },
+          ],
+          stakeCurrency: {
+            coinDenom: "SCRT",
+            coinMinimalDenom: "uscrt",
+            coinDecimals: 6,
+          },
+          coinType: 529,
+        });
+      }
       // Get stargaze info
       await window.keplr.enable(env.NEXT_PUBLIC_STARGAZE_CHAIN_ID);
       const stargazeOfflineSigner = window.keplr.getOfflineSignerOnlyAmino(
         env.NEXT_PUBLIC_STARGAZE_CHAIN_ID
       );
       const stargazeAccounts = await stargazeOfflineSigner.getAccounts();
-      const stargazeAddress = stargazeAccounts[0]?.address as string;
+      stargazeAddress = stargazeAccounts[0]?.address as string;
       if (!stargazeAddress) {
         throw new Error("Failed to grab Secret address from Keplr!");
       }
@@ -38,7 +78,7 @@ export const ConnectCard = () => {
         env.NEXT_PUBLIC_SECRET_CHAIN_ID
       );
       const secretAccounts = await secretOfflineSigner.getAccounts();
-      const secretAddress = secretAccounts[0]?.address as string;
+      secretAddress = secretAccounts[0]?.address as string;
       if (!secretAddress) {
         throw new Error("Failed to grab Secret address from Keplr!");
       }
@@ -52,7 +92,7 @@ export const ConnectCard = () => {
         ),
       });
       // Get permit
-      const newPermit = await secretjs.utils.accessControl.permit.sign(
+      newPermit = await secretjs.utils.accessControl.permit.sign(
         secretAddress,
         env.NEXT_PUBLIC_SECRET_CHAIN_ID,
         "MetaRats Burn & Swap",
@@ -66,28 +106,6 @@ export const ConnectCard = () => {
         stargaze: stargazeAddress,
       });
       client.set(secretjs);
-      // Post to faucet API with address and display toast if there's an error caught
-      const response = await fetch("/api/swap", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          secretAddress: secretAddress,
-          stargazeAddress: stargazeAddress,
-        }),
-      });
-      if (response.ok) {
-        const { tokens }: { tokens: string[] } = (await response.json()) as {
-          tokens: string[];
-        };
-        if (tokens.length !== 0) {
-          toast({
-            description: `${tokens.length} burned Rats were discovered and sent to your Stargaze wallet!`,
-            status: "info",
-          });
-        }
-      }
     } catch (error) {
       console.error(error);
       let errorMsg = "An unexpected error occurred. Please try again.";
@@ -100,6 +118,44 @@ export const ConnectCard = () => {
         duration: 9000,
         isClosable: true,
       });
+    }
+    try {
+      const toastId = toast({
+        description: "Checking for burned Rats...",
+        id: "burned-rats",
+        status: "loading",
+        duration: 5000,
+        isClosable: false,
+      });
+      // Check if any burned tokens
+      const response = await fetch("/api/swap", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          secretAddress,
+          stargazeAddress,
+          permit: newPermit,
+        }),
+      });
+      if (response.ok) {
+        const { tokens }: { tokens: string[] } = (await response.json()) as {
+          tokens: string[];
+        };
+        if (tokens.length > 0) {
+          toast.update(toastId, {
+            description: `${tokens.length} burned Rats were discovered and sent to your Stargaze wallet!`,
+            status: "info",
+            duration: 9000,
+            isClosable: true,
+          });
+        }
+      } else {
+        throw new Error(await response.text());
+      }
+    } catch (error) {
+      console.error(error);
     }
     setLoading(false);
   };

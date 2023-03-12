@@ -25,6 +25,7 @@
         "semi": true,
         "useTabs": false
       }
-    ]
+    ],
+    "@typescript-eslint/no-unsafe-assignment": "off"
   }
 }

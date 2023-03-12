@@ -7,32 +7,22 @@ import {
   toUtf8,
 } from "cosmwasm";
 import { env as serverEnv } from "../../env/server.mjs";
-import { SecretNetworkClient, Wallet } from "secretjs";
+import { Permit, SecretNetworkClient, Wallet } from "secretjs";
 import { createClient } from "@supabase/supabase-js";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
+import util from "util";
 
 const swap = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
-    if (clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID !== "pulsar-2") {
-      throw new Error("Faucet is only available on testnet.");
-    }
     const body: RequestBody = req.body as RequestBody;
-    if (!body || !body.secretAddress || !body.stargazeAddress) {
-      throw new Error("Missing address");
+    if (!body || !body.secretAddress || !body.stargazeAddress || !body.permit) {
+      throw new Error("Incorrect arguments provided.");
     }
     const stargazeClient = await getStargazeClient();
     const secretClient = getSecretClient();
     const supabaseClient = createClient(
       serverEnv.SUPABASE_URL,
       serverEnv.SUPABASE_KEY
-    );
-    const permit = await secretClient.utils.accessControl.permit.sign(
-      clientEnv.NEXT_PUBLIC_SECRET_BACKEND_ADDRESS,
-      clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID,
-      "Transaction History",
-      [clientEnv.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS],
-      ["owner"],
-      false
     );
     // Get transaction history
     const txHistory: TransactionHistory =
@@ -41,7 +31,7 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
         code_hash: clientEnv.NEXT_PUBLIC_SECRET_CONTRACT_HASH,
         query: {
           with_permit: {
-            permit: permit,
+            permit: body.permit,
             query: {
               transaction_history: {
                 address: body.secretAddress,
@@ -59,12 +49,15 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     const burnTxs = txHistory.transaction_history.txs.filter((transaction) =>
       transaction.action.hasOwnProperty("burn")
     );
+    // console.log(
+    //   util.inspect(txHistory, { showHidden: false, depth: null, colors: true })
+    // );
     if (burnTxs.length === 0) {
       throw new Error(
         `Did not find any burn transactions for ${body.secretAddress}.`
-      );
+      ); // Do not add to logflare, as it checks each time a user enters the dApp
     }
-    // Check which have not been swapped in DB
+    // Check which tokens have not been swapped in DB
     const { data, error } = await supabaseClient
       .from("swapped_tokens")
       .select()
@@ -195,6 +188,7 @@ type TransactionHistory = {
 type RequestBody = {
   secretAddress: string;
   stargazeAddress: string;
+  permit: Permit;
 };
 
 export default swap;

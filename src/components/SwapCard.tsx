@@ -10,15 +10,21 @@ import { BiLinkExternal } from "react-icons/bi";
 import Link from "next/link";
 
 export const SwapCard = () => {
-  const address = useWalletStore((state) => state.address.value);
-  const client = useWalletStore((state) => state.client.value);
+  const {
+    address: {
+      value: { secret: secretAddress, stargaze: stargazeAddress },
+    },
+    client,
+    permit,
+  } = useWalletStore((state) => state);
   const { data: inventory, isError, isLoading, refetch } = useInventory();
   const [isBurned, setIsBurned] = useState(false);
+  const [burnedTokens, setBurnedTokens] = useState<string[]>();
+  const [swappedTokens, setSwappedTokens] = useState<string[]>();
   const [isSwapped, setIsSwapped] = useState(false);
-  const [swappedTokens, setSwappedTokens] = useState<string[]>([]);
   const toast = useToast();
   const handleFaucetRequest = async () => {
-    if (!address) {
+    if (!secretAddress || !client) {
       toast({
         description: "Failed to grab your Secret address.",
         status: "error",
@@ -42,7 +48,7 @@ export const SwapCard = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ address: address.secret }),
+        body: JSON.stringify({ address: secretAddress }),
       });
       if (!response.ok) {
         throw new Error(await response.text());
@@ -69,7 +75,7 @@ export const SwapCard = () => {
     }
   };
   const handleSwap = async () => {
-    if (!inventory || !address.secret || !address.stargaze || !client) {
+    if (!inventory || !secretAddress || !stargazeAddress || !client) {
       toast({
         description: "Failed to grab your address.",
         status: "error",
@@ -87,17 +93,9 @@ export const SwapCard = () => {
       isClosable: false,
     });
     try {
-      await client.utils.accessControl.permit.sign(
-        address.secret,
-        env.NEXT_PUBLIC_SECRET_CHAIN_ID,
-        "Transaction History",
-        [env.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS],
-        ["owner"],
-        true
-      );
-      const burnTx = await client?.tx.compute.executeContract(
+      const burnTx = await client.value?.tx.compute.executeContract(
         {
-          sender: address.secret,
+          sender: secretAddress,
           contract_address: env.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS,
           code_hash: env.NEXT_PUBLIC_SECRET_CONTRACT_HASH,
           msg: {
@@ -110,34 +108,44 @@ export const SwapCard = () => {
           gasLimit: 500_000,
         }
       );
-      if (burnTx.code === 0) {
+      if (burnTx?.code === 0) {
         setIsBurned(true);
         toast.update(toastId, {
-          description: "Burned successfully!",
-          status: "success",
+          description:
+            inventory.length.toString() +
+            " MetaRats burned! Swapping to Stargaze...",
+          status: "loading",
           duration: 9000,
           isClosable: true,
         });
+        setBurnedTokens(inventory);
         const response = await fetch("/api/swap", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            secretAddress: address.secret,
-            stargazeAddress: address.stargaze,
+            secretAddress,
+            stargazeAddress,
+            permit: permit.value,
           }),
         });
         if (response.ok) {
           const { tokens }: { tokens: string[] } = (await response.json()) as {
             tokens: string[];
           };
-          setSwappedTokens(tokens);
           setIsSwapped(true);
+          setSwappedTokens(tokens);
+          toast.update(toastId, {
+            description: "Swap successful!",
+            status: "success",
+            duration: 9000,
+            isClosable: true,
+          });
         } else {
           throw new Error(await response.text());
         }
-      } else if (burnTx.rawLog.includes("out of gas")) {
+      } else if (burnTx?.rawLog.includes("out of gas")) {
         toast.update(toastId, {
           description: "You do not have enough $SCRT for the gas fees.",
           status: "error",
@@ -227,7 +235,7 @@ export const SwapCard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200/20 bg-white/20">
-              {inventory?.map((tokenId) => (
+              {(swappedTokens ?? burnedTokens)?.map((tokenId) => (
                 <tr key={tokenId}>
                   <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-0">
                     <div className="flex items-center">
@@ -254,7 +262,7 @@ export const SwapCard = () => {
                     <span
                       className={classNames(
                         "inline-flex rounded-full px-2 text-xs font-semibold leading-5",
-                        swappedTokens.includes(tokenId)
+                        burnedTokens?.includes(tokenId)
                           ? "bg-green-100 text-green-800"
                           : "bg-yellow-100 text-yellow-500"
                       )}
@@ -264,11 +272,15 @@ export const SwapCard = () => {
                   </td>
                   <td>
                     <Link
-                      href={swappedTokens.includes(tokenId) ? "" : "#"}
-                      target={swappedTokens.includes(tokenId) ? "_blank" : ""}
+                      href={
+                        burnedTokens?.includes(tokenId)
+                          ? `${env.NEXT_PUBLIC_STARGAZE_MARKETPLACE_URL}/media/${env.NEXT_PUBLIC_STARGAZE_SG721}/${tokenId}`
+                          : "#"
+                      }
+                      target={burnedTokens?.includes(tokenId) ? "_blank" : ""}
                       className={classNames(
                         "flex items-center gap-1 whitespace-nowrap px-3 py-4 text-sm",
-                        swappedTokens.includes(tokenId)
+                        burnedTokens?.includes(tokenId)
                           ? "text-purple-500"
                           : "text-gray-300 hover:cursor-not-allowed"
                       )}
@@ -282,7 +294,7 @@ export const SwapCard = () => {
           </table>
         </div>
       )}
-      <span className="absolute left-1 bottom-1 text-xs">{address.secret}</span>
+      <span className="absolute left-1 bottom-1 text-xs">{secretAddress}</span>
     </div>
   );
 };

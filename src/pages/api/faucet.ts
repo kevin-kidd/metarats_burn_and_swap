@@ -10,55 +10,6 @@ import allMetadata from "../../data/all_metadata.json";
 
 const collectionSize = 3261;
 
-const getSecretClient = () => {
-  const wallet = new Wallet(serverEnv.MNEMONIC);
-  return new SecretNetworkClient({
-    chainId: clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID,
-    url: clientEnv.NEXT_PUBLIC_SECRET_REST_URL,
-    wallet: wallet,
-    walletAddress: wallet.address,
-  });
-};
-
-const checkAddress = async (
-  address: string,
-  supabaseClient: SupabaseClient
-) => {
-  const { data, error } = await supabaseClient
-    .from("faucet")
-    .select()
-    .eq("address", address);
-  if (error) {
-    console.error("Error checking address", error.message);
-    throw new Error("Error checking address");
-  }
-  if (data[0] && data[0].created_at) {
-    const createdAt: string = data[0].created_at as string;
-    const days = moment().diff(moment(createdAt), "days");
-    if (days < 1) {
-      throw new Error("You may only use the faucet once every 24 hours.");
-    }
-  }
-};
-
-const checkTokenMinted = async (
-  tokenId: string,
-  supabaseClient: SupabaseClient
-) => {
-  const { data, error } = await supabaseClient
-    .from("minted_tokens")
-    .select()
-    .eq("token_id", tokenId);
-  if (error) {
-    console.error("Error checking token", error.message);
-    return true;
-  }
-  if (data[0] && data[0].token_id) {
-    return true;
-  }
-  return false;
-};
-
 const faucet = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     if (clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID !== "pulsar-2") {
@@ -129,11 +80,73 @@ const faucet = async (req: NextApiRequest, res: NextApiResponse) => {
     if (insertError) {
       console.error({ insertError });
     }
+    fetch("https://faucetbe.pulsar.scrttestnet.com/credit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        address: body.address,
+        denom: "uscrt",
+      }),
+    }).catch((error) => console.error(error));
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error(error);
+    if (error instanceof Error) {
+      return res.status(500).send(error.message);
+    }
     return res.status(500).send("Internal server error");
   }
+};
+
+const getSecretClient = () => {
+  const wallet = new Wallet(serverEnv.MNEMONIC);
+  return new SecretNetworkClient({
+    chainId: clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID,
+    url: clientEnv.NEXT_PUBLIC_SECRET_REST_URL,
+    wallet: wallet,
+    walletAddress: wallet.address,
+  });
+};
+
+const checkAddress = async (
+  address: string,
+  supabaseClient: SupabaseClient
+) => {
+  const { data, error } = await supabaseClient
+    .from("faucet")
+    .select()
+    .eq("address", address);
+  if (error) {
+    console.error("Error checking address", error.message);
+    throw new Error("Error checking address");
+  }
+  if (data[0] && data[0].created_at) {
+    const createdAt: string = data[0].created_at as string;
+    const days = moment().diff(moment(createdAt), "days");
+    if (days < 1) {
+      throw new Error("You may only use the faucet once every 24 hours.");
+    }
+  }
+};
+
+const checkTokenMinted = async (
+  tokenId: string,
+  supabaseClient: SupabaseClient
+) => {
+  const { data, error } = await supabaseClient
+    .from("minted_tokens")
+    .select()
+    .eq("token_id", tokenId);
+  if (error) {
+    console.error("Error checking token", error.message);
+    return true;
+  }
+  if (data[0] && data[0].token_id) {
+    return true;
+  }
+  return false;
 };
 
 type MintMsg = {
