@@ -130,6 +130,12 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
         `Error inserting tokens in to the database for ${body.secretAddress}`
       );
     }
+    logger.info(
+      `Successfully swapped tokens for address ${body.secretAddress}`,
+      {
+        eligibleTokens,
+      }
+    );
     // Return all newly minted tokens
     return res.status(200).json({ tokens: eligibleTokens });
   } catch (error) {

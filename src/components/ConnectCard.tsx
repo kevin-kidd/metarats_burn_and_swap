@@ -11,7 +11,10 @@ export const ConnectCard = () => {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const connect = async () => {
-    let secretAddress, stargazeAddress, newPermit;
+    let secretAddress,
+      stargazeAddress,
+      newPermit,
+      connected = false;
     try {
       setLoading(true);
       const sleep = (ms: number) =>
@@ -106,6 +109,7 @@ export const ConnectCard = () => {
         stargaze: stargazeAddress,
       });
       client.set(secretjs);
+      connected = true;
     } catch (error) {
       console.error(error);
       let errorMsg = "An unexpected error occurred. Please try again.";
@@ -119,6 +123,7 @@ export const ConnectCard = () => {
         isClosable: true,
       });
     }
+    if (!connected) return;
     try {
       const toastId = toast({
         description: "Checking for burned Rats...",
