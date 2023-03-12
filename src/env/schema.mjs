@@ -10,6 +10,8 @@ export const serverSchema = z.object({
   MNEMONIC: z.string(),
   SUPABASE_KEY: z.string(),
   SUPABASE_URL: z.string(),
+  LOGFLARE_API_KEY: z.string(),
+  LOGFLARE_SOURCE_TOKEN: z.string(),
 });
 
 /**
@@ -22,6 +24,8 @@ export const serverEnv = {
   MNEMONIC: process.env.MNEMONIC,
   SUPABASE_KEY: process.env.SUPABASE_KEY,
   SUPABASE_URL: process.env.SUPABASE_URL,
+  LOGFLARE_API_KEY: process.env.LOGFLARE_API_KEY,
+  LOGFLARE_SOURCE_TOKEN: process.env.LOGFLARE_SOURCE_TOKEN,
 };
 
 /**

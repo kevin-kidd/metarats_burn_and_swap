@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { env as clientEnv } from "../../env/client.mjs";
 import { NextApiRequest, NextApiResponse } from "next";
 import {
@@ -8,13 +11,26 @@ import {
 } from "cosmwasm";
 import { env as serverEnv } from "../../env/server.mjs";
 import { Permit, SecretNetworkClient, Wallet } from "secretjs";
+import pino from "pino";
 import { createClient } from "@supabase/supabase-js";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
-import util from "util";
+import { createWriteStream } from "pino-logflare";
+
+import { LogflareUserOptionsI } from "logflare-transport-core";
+interface Options extends LogflareUserOptionsI {
+  size?: number;
+}
+
+// create pino-logflare logger
+const logStream = createWriteStream({
+  apiKey: serverEnv.LOGFLARE_API_KEY,
+  sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
+} as Options);
+const logger = pino({}, logStream);
 
 const swap = async (req: NextApiRequest, res: NextApiResponse) => {
+  const body: RequestBody = req.body as RequestBody;
   try {
-    const body: RequestBody = req.body as RequestBody;
     if (!body || !body.secretAddress || !body.stargazeAddress || !body.permit) {
       throw new Error("Incorrect arguments provided.");
     }
@@ -49,13 +65,8 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     const burnTxs = txHistory.transaction_history.txs.filter((transaction) =>
       transaction.action.hasOwnProperty("burn")
     );
-    // console.log(
-    //   util.inspect(txHistory, { showHidden: false, depth: null, colors: true })
-    // );
     if (burnTxs.length === 0) {
-      throw new Error(
-        `Did not find any burn transactions for ${body.secretAddress}.`
-      ); // Do not add to logflare, as it checks each time a user enters the dApp
+      throw new Error("Did not find any burn transactions."); // Do not add to logflare, as it checks each time a user enters the dApp
     }
     // Check which tokens have not been swapped in DB
     const { data, error } = await supabaseClient
@@ -66,7 +77,7 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
         "in",
         `(${burnTxs.map((tx) => JSON.stringify(tx.token_id)).join()})`
       );
-    if (error) throw new Error("Internal server error");
+    if (error) throw new Error("Failed to check database for tokens.");
     const eligibleTokens = burnTxs
       .map((tx) => tx.token_id)
       .filter(
@@ -115,16 +126,22 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
         }))
       );
     if (insertError) {
-      console.error("Error inserting in to the database.");
+      logger.error(
+        `Error inserting tokens in to the database for ${body.secretAddress}`
+      );
     }
     // Return all newly minted tokens
     return res.status(200).json({ tokens: eligibleTokens });
   } catch (error) {
-    console.error(error);
-    if (error instanceof Error) {
-      return res.status(500).send(error.message);
+    const errorMsg =
+      error instanceof Error ? error.message : "Internal server error";
+    if (errorMsg !== "Did not find any burn transactions.") {
+      logger.error(
+        errorMsg,
+        `Error swapping tokens for address ${body.secretAddress}`
+      );
     }
-    return res.status(500).send("Internal server error");
+    return res.status(500).send(errorMsg);
   }
 };
 
