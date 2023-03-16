@@ -28,6 +28,50 @@ export const ConnectCard = () => {
       }
       if (env.NEXT_PUBLIC_SECRET_CHAIN_ID === "pulsar-2") {
         await window.keplr.experimentalSuggestChain({
+          chainId: env.NEXT_PUBLIC_STARGAZE_CHAIN_ID,
+          chainName: "elgafar-1",
+          rpc: env.NEXT_PUBLIC_STARGAZE_RPC_URL,
+          rest: env.NEXT_PUBLIC_STARGAZE_REST_URL,
+          bech32Config: {
+            bech32PrefixAccAddr: "stars",
+            bech32PrefixAccPub: "starspub",
+            bech32PrefixValAddr: "starsvaloper",
+            bech32PrefixValPub: "starsvaloperpub",
+            bech32PrefixConsAddr: "starsvalcons",
+            bech32PrefixConsPub: "starsvalconspub",
+          },
+          currencies: [
+            {
+              coinDenom: "STARS",
+              coinMinimalDenom: "ustars",
+              coinDecimals: 6,
+            },
+          ],
+          feeCurrencies: [
+            {
+              coinDenom: "STARS",
+              coinMinimalDenom: "ustars",
+              coinDecimals: 6,
+              gasPriceStep: {
+                low: 0.0125,
+                average: 0.025,
+                high: 0.05,
+              },
+            },
+          ],
+          stakeCurrency: {
+            coinDenom: "STARS",
+            coinMinimalDenom: "ustars",
+            coinDecimals: 6,
+          },
+          bip44: {
+            coinType: 118,
+          },
+          coinType: 118,
+          features: ["ibc-transfer", "cosmwasm", "ibc-go"],
+          beta: true,
+        });
+        await window.keplr.experimentalSuggestChain({
           chainId: env.NEXT_PUBLIC_SECRET_CHAIN_ID,
           chainName: "Secret Pulsar Testnet",
           rpc: env.NEXT_PUBLIC_SECRET_RPC_URL,
