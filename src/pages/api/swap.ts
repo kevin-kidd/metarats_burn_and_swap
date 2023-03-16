@@ -22,19 +22,18 @@ interface Options extends LogflareUserOptionsI {
   size?: number;
 }
 
-// create pino-logflare logger
-const logStream = createWriteStream({
-  apiKey: serverEnv.LOGFLARE_API_KEY,
-  sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
-} as Options);
-const logger = pino({}, logStream);
-
 const swap = async (req: NextApiRequest, res: NextApiResponse) => {
   const body: RequestBody = req.body as RequestBody;
   try {
     if (!body || !body.secretAddress || !body.stargazeAddress || !body.permit) {
       throw new Error("Incorrect arguments provided.");
     }
+    // create pino-logflare logger
+    const logStream = createWriteStream({
+      apiKey: serverEnv.LOGFLARE_API_KEY,
+      sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
+    } as Options);
+    const logger = pino({}, logStream);
     const stargazeClient = await getStargazeClient();
     const secretClient = getSecretClient();
     const supabaseClient = createClient(
