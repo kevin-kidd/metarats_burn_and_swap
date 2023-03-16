@@ -143,6 +143,10 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
   } catch (error) {
     const errorMsg =
       error instanceof Error ? error.message : "Internal server error";
+    logger.error(
+      errorMsg,
+      `Error swapping tokens for address ${body.secretAddress}`
+    );
     if (
       errorMsg !== "Did not find any burn transactions." &&
       !errorMsg.includes("Transaction history for") &&
