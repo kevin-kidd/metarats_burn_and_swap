@@ -66,7 +66,9 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
       transaction.action.hasOwnProperty("burn")
     );
     if (burnTxs.length === 0) {
-      throw new Error("Did not find any burn transactions."); // Do not add to logflare, as it checks each time a user enters the dApp
+      throw new Error(
+        "Did not find any burn transactions for address " + body.secretAddress
+      );
     }
     // Check which tokens have not been swapped in DB
     const { data, error } = await supabaseClient
