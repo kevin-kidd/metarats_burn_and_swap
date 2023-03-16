@@ -17,19 +17,15 @@ import { createClient } from "@supabase/supabase-js";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { createWriteStream } from "pino-logflare";
 
-import { LogflareUserOptionsI } from "logflare-transport-core";
-interface Options extends LogflareUserOptionsI {
-  size?: number;
-}
+// create pino-logflare logger
+const logStream = createWriteStream({
+  apiKey: serverEnv.LOGFLARE_API_KEY,
+  sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
+});
+const logger = pino({}, logStream);
 
 const swap = async (req: NextApiRequest, res: NextApiResponse) => {
   const body: RequestBody = req.body as RequestBody;
-  // create pino-logflare logger
-  const logStream = createWriteStream({
-    apiKey: serverEnv.LOGFLARE_API_KEY,
-    sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
-  } as Options);
-  const logger = pino({}, logStream);
   try {
     if (!body || !body.secretAddress || !body.stargazeAddress || !body.permit) {
       throw new Error("Incorrect arguments provided.");
@@ -129,7 +125,9 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
       );
     if (insertError) {
       logger.error(
-        `Error inserting tokens in to the DB for ${body.secretAddress}`
+        new Error(
+          `Error inserting tokens in to the DB for ${body.secretAddress}`
+        )
       );
     }
     const tokensChild = logger.child(eligibleTokens);
@@ -145,7 +143,7 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     const errorMsg =
       error instanceof Error ? error.message : "Internal server error";
     logger.error(
-      errorMsg,
+      new Error(errorMsg),
       `Error swapping tokens for address ${body.secretAddress}`
     );
     return res.status(500).send(errorMsg);
