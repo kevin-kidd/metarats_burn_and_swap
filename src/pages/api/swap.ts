@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -127,10 +128,11 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
       );
     if (insertError) {
       logger.error(
-        `Error inserting tokens in to the database for ${body.secretAddress}`
+        `Error inserting tokens in to the DB for ${body.secretAddress}`
       );
     }
-    logger.info(
+    const tokensChild = logger.child(eligibleTokens);
+    tokensChild.info(
       `Successfully swapped tokens for address ${body.secretAddress}`,
       {
         eligibleTokens,
@@ -141,7 +143,11 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
   } catch (error) {
     const errorMsg =
       error instanceof Error ? error.message : "Internal server error";
-    if (errorMsg !== "Did not find any burn transactions.") {
+    if (
+      errorMsg !== "Did not find any burn transactions." &&
+      !errorMsg.includes("Transaction history for") &&
+      !errorMsg.includes("No eligible tokens")
+    ) {
       logger.error(
         errorMsg,
         `Error swapping tokens for address ${body.secretAddress}`

@@ -115,7 +115,7 @@ export const SwapCard = () => {
             inventory.length.toString() +
             " MetaRats burned! Swapping to Stargaze...",
           status: "loading",
-          duration: 9000,
+          duration: null,
           isClosable: true,
         });
         setBurnedTokens(inventory);
