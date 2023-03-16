@@ -130,12 +130,11 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
         )
       );
     }
-    const tokensChild = logger.child(eligibleTokens);
-    tokensChild.error(
-      `Successfully swapped tokens for address ${body.secretAddress}`,
-      {
-        eligibleTokens,
-      }
+    logger.error(
+      new Error(
+        `Successfully swapped tokens for address ${body.secretAddress}`
+      ),
+      JSON.stringify(eligibleTokens)
     );
     // Return all newly minted tokens
     return res.status(200).json({ tokens: eligibleTokens });
