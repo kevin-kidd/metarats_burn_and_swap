@@ -147,16 +147,6 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
       errorMsg,
       `Error swapping tokens for address ${body.secretAddress}`
     );
-    if (
-      errorMsg !== "Did not find any burn transactions." &&
-      !errorMsg.includes("Transaction history for") &&
-      !errorMsg.includes("No eligible tokens")
-    ) {
-      logger.error(
-        errorMsg,
-        `Error swapping tokens for address ${body.secretAddress}`
-      );
-    }
     return res.status(500).send(errorMsg);
   }
 };
