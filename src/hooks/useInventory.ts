@@ -18,6 +18,7 @@ export const useInventory = () => {
       },
       owner: address.value.secret,
     });
+    console.log({ inventory });
     return inventory.token_list.tokens;
   });
 };

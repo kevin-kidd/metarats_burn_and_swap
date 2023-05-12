@@ -142,11 +142,12 @@ export const ConnectCard = () => {
       newPermit = await secretjs.utils.accessControl.permit.sign(
         secretAddress,
         env.NEXT_PUBLIC_SECRET_CHAIN_ID,
-        "MetaRats Burn & Swap",
+        "MetaRats Burn and Swap",
         [env.NEXT_PUBLIC_SECRET_CONTRACT_ADDRESS],
         ["owner"],
         true
       );
+      console.log(secretAddress, newPermit);
       permit.set(newPermit);
       address.set({
         secret: secretAddress,
