@@ -9,6 +9,8 @@ import { SwapCard } from "../components/SwapCard";
 import loadingAnimation from "../../public/loading.webp";
 import { useEffect, useState } from "react";
 import { Transition } from "@headlessui/react";
+import { Stat } from "../components/Stat";
+import { Footer } from "../components/Footer";
 
 const Home: NextPage = () => {
   const client = useWalletStore((state) => state.client);
@@ -46,16 +48,24 @@ const Home: NextPage = () => {
         </div>
       </Transition>
 
-      <main className="relative flex min-h-screen flex-col items-center bg-opacity-5 pt-[5%]">
+      <main className="relative flex h-full min-h-screen flex-col items-center bg-opacity-5">
+        <Stat />
         <Image
           src={background}
           className="absolute top-0 left-0 -z-10 h-full w-full object-cover brightness-50"
           alt=""
         />
-        <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-          <Image src={HeroText} alt="MetaRats Burn & Swap" className="w-1/2" />
-          {client.value ? <SwapCard /> : <ConnectCard />}
+        <div className="container flex h-[80vh] flex-col items-center gap-4 px-4 py-16">
+          <Image
+            src={HeroText}
+            alt="MetaRats Burn & Swap"
+            className="w-full sm:w-1/2"
+          />
+          <div className="flex h-full flex-col items-center justify-center gap-8">
+            {client.value ? <SwapCard /> : <ConnectCard />}
+          </div>
         </div>
+        <Footer />
       </main>
     </>
   );

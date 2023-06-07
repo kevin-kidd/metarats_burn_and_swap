@@ -7,7 +7,8 @@ import { env } from "../env/client.mjs";
 import { useWalletStore } from "../stores/walletStore";
 
 export const ConnectCard = () => {
-  const { address, client, permit } = useWalletStore((state) => state);
+  const { address, client, permit, burnedTokens, swappedTokens } =
+    useWalletStore((state) => state);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const connect = async () => {
@@ -117,7 +118,7 @@ export const ConnectCard = () => {
       const stargazeAccounts = await stargazeOfflineSigner.getAccounts();
       stargazeAddress = stargazeAccounts[0]?.address as string;
       if (!stargazeAddress) {
-        throw new Error("Failed to grab Secret address from Keplr!");
+        throw new Error("Failed to grab Stargaze address from Keplr!");
       }
       // Get Secret info
       await window.keplr.enable(env.NEXT_PUBLIC_SECRET_CHAIN_ID);
@@ -174,7 +175,6 @@ export const ConnectCard = () => {
         description: "Checking for burned Rats...",
         id: "burned-rats",
         status: "loading",
-        duration: 5000,
         isClosable: false,
       });
       // Check if any burned tokens
@@ -201,6 +201,8 @@ export const ConnectCard = () => {
             isClosable: true,
           });
         }
+        burnedTokens.set(tokens);
+        swappedTokens.set(tokens);
       } else {
         throw new Error(await response.text());
       }

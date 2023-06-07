@@ -12,6 +12,20 @@ export const useWalletStore = create<WalletState>()(
           state.client.value = client;
         }),
     },
+    burnedTokens: {
+      value: [],
+      set: (tokens: string[]) =>
+        set((state) => {
+          state.burnedTokens.value = tokens;
+        }),
+    },
+    swappedTokens: {
+      value: [],
+      set: (tokens: string[]) =>
+        set((state) => {
+          state.swappedTokens.value = tokens;
+        }),
+    },
     address: {
       value: {},
       set: (addresses) =>

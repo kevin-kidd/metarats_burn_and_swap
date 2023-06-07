@@ -138,6 +138,7 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     // Return all newly minted tokens
     return res.status(200).json({ tokens: eligibleTokens });
   } catch (error) {
+    console.error(error);
     const errorMsg =
       error instanceof Error ? error.message : "Internal server error";
     logger.error(
@@ -159,7 +160,7 @@ const getStargazeClient = async () => {
     clientEnv.NEXT_PUBLIC_STARGAZE_RPC_URL,
     wallet,
     {
-      gasPrice: GasPrice.fromString("0ustars"),
+      gasPrice: GasPrice.fromString("0.25ustars"),
     }
   );
 };

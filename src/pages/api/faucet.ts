@@ -8,7 +8,7 @@ import { env as clientEnv } from "../../env/client.mjs";
 import type { Extension } from "secretjs/dist/extensions/snip721/types.js";
 import allMetadata from "../../data/all_metadata.json";
 
-const collectionSize = 3261;
+const collectionSize = 3233;
 
 const faucet = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
