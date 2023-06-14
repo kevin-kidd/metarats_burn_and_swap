@@ -180,7 +180,7 @@ export const SwapCard = () => {
       >
         {burnedTokens.value.length <= 0 && (
           <>
-            {clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID !== "pulsar-2" && (
+            {clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID === "pulsar-2" && (
               <button
                 className="absolute bottom-1 left-2 text-gray-500 transition duration-150 ease-in-out hover:text-gray-200"
                 onClick={() => {
