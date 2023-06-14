@@ -1,7 +1,6 @@
 import { Button, useToast } from "@chakra-ui/react";
 import classNames from "classnames";
 import Image from "next/image";
-import { useState } from "react";
 import { env } from "../env/client.mjs";
 import { useInventory } from "../hooks/useInventory";
 import { useWalletStore } from "../stores/walletStore";
@@ -9,6 +8,7 @@ import images from "../data/images.json";
 import { BiLinkExternal } from "react-icons/bi";
 import Link from "next/link";
 import { InstructionsCard } from "./InstructionsCard";
+import { clientEnv } from "../env/schema.mjs";
 
 export const SwapCard = () => {
   const {
@@ -180,16 +180,19 @@ export const SwapCard = () => {
       >
         {burnedTokens.value.length <= 0 && (
           <>
-            <button
-              className="absolute bottom-1 left-2 text-gray-500 transition duration-150 ease-in-out hover:text-gray-200"
-              onClick={() => {
-                if (!toast.isActive("faucet-toast")) {
-                  void handleFaucetRequest();
-                }
-              }}
-            >
-              Faucet
-            </button>
+            {clientEnv.NEXT_PUBLIC_SECRET_CHAIN_ID !== "pulsar-2" && (
+              <button
+                className="absolute bottom-1 left-2 text-gray-500 transition duration-150 ease-in-out hover:text-gray-200"
+                onClick={() => {
+                  if (!toast.isActive("faucet-toast")) {
+                    void handleFaucetRequest();
+                  }
+                }}
+              >
+                Faucet
+              </button>
+            )}
+
             <h1 className="mb-6 text-center text-lg sm:text-xl">
               You have{" "}
               <span className="font-semibold text-teal-500">
