@@ -163,7 +163,7 @@ const getStargazeClient = async () => {
     clientEnv.NEXT_PUBLIC_STARGAZE_RPC_URL,
     wallet,
     {
-      gasPrice: GasPrice.fromString("0.25ustars"),
+      gasPrice: GasPrice.fromString("1ustars"),
     }
   );
 };
