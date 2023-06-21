@@ -143,10 +143,9 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(200).json({ tokens: eligibleTokens });
   } catch (error) {
     console.error(error);
-    const errorMsg =
-      error instanceof Error ? error.message : "Internal server error";
+    const errorMsg = error instanceof Error ? new Error(error.message) : error;
     logger.error(
-      new Error(errorMsg),
+      errorMsg,
       `Error swapping tokens for address ${body.secretAddress}`
     );
     return res.status(500).send(errorMsg);
