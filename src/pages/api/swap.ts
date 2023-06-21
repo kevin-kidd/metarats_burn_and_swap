@@ -125,15 +125,16 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
       );
     if (insertError) {
       logger.error(
-        new Error(
-          `Error inserting tokens in to the DB for ${body.secretAddress}`
-        )
+        insertError,
+        `Error inserting tokens in to the DB for ${body.secretAddress}`
       );
     }
     logger.info(
-      `Successfully swapped tokens for address ${
-        body.secretAddress
-      } | ${JSON.stringify(eligibleTokens)}`,
+      {
+        message: `Successfully swapped tokens for address ${
+          body.secretAddress
+        } | ${JSON.stringify(eligibleTokens)}`,
+      },
       `Successfully swapped tokens for address ${
         body.secretAddress
       } | ${JSON.stringify(eligibleTokens)}`
