@@ -22,13 +22,15 @@ const supabaseClient = createClient(
   serverEnv.SUPABASE_KEY
 );
 
+// create pino-logflare logger
+const logStream = createWriteStream({
+  apiKey: serverEnv.LOGFLARE_API_KEY,
+  sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
+});
+
 const swap = async (req: NextApiRequest, res: NextApiResponse) => {
   const body: RequestBody = req.body as RequestBody;
-  // create pino-logflare logger
-  const logStream = createWriteStream({
-    apiKey: serverEnv.LOGFLARE_API_KEY,
-    sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
-  });
+
   const logger = pino({}, logStream);
 
   try {
