@@ -201,6 +201,18 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
       }
       if (attempts === maxAttempts) {
         logger.error(
+          {
+            error: `Failed to insert tokens into the DB for ${
+              body.secretAddress
+            } | ${body.stargazeAddress} |  ${JSON.stringify(
+              chunk
+            )} after ${maxAttempts} attempts.`,
+          },
+          `Failed to insert tokens into the DB for ${body.secretAddress} | ${
+            body.stargazeAddress
+          } |  ${JSON.stringify(chunk)} after ${maxAttempts} attempts.`
+        );
+        console.error(
           `Failed to insert tokens into the DB for ${body.secretAddress} | ${
             body.stargazeAddress
           } |  ${JSON.stringify(chunk)} after ${maxAttempts} attempts.`
