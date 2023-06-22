@@ -24,6 +24,11 @@ const logStream = createWriteStream({
 });
 const logger = pino({}, logStream);
 
+const supabaseClient = createClient(
+  serverEnv.SUPABASE_URL,
+  serverEnv.SUPABASE_KEY
+);
+
 const swap = async (req: NextApiRequest, res: NextApiResponse) => {
   const body: RequestBody = req.body as RequestBody;
   try {
@@ -32,10 +37,6 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     }
     const stargazeClient = await getStargazeClient();
     const secretClient = getSecretClient();
-    const supabaseClient = createClient(
-      serverEnv.SUPABASE_URL,
-      serverEnv.SUPABASE_KEY
-    );
     // Get transaction history
     const txHistory: TransactionHistory =
       await secretClient.query.compute.queryContract({
