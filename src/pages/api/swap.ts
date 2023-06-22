@@ -64,7 +64,7 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
           },
         },
       });
-    if (txHistory.transaction_history.txs.length === 0) {
+    if (txHistory.transaction_history.txs?.length === 0) {
       throw new Error(
         `Transaction history for address ${body.secretAddress} is empty.`
       );
