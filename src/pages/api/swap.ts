@@ -217,8 +217,8 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     const errorMsg =
       error instanceof Error
         ? new Error(error.message.substring(0, 150))
-        : error;
-    console.error(error);
+        : JSON.stringify(error).substring(0, 150);
+    console.error(JSON.stringify(error));
     logger.error(
       errorMsg,
       `Error swapping tokens for address ${body.secretAddress} | ${body.stargazeAddress}`
