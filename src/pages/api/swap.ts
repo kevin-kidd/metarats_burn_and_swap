@@ -116,39 +116,95 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
       );
     }
     // Add to database
-    const { error: insertError } = await supabaseClient
-      .from("swapped_tokens")
-      .insert(
-        eligibleTokens.map((tokenId) => ({
-          token_id: tokenId,
-          address: body.secretAddress,
-        }))
-      );
-    if (insertError) {
-      logger.error(
-        insertError,
-        `Error inserting tokens in to the DB for ${body.secretAddress} | ${
-          body.stargazeAddress
-        } |  ${JSON.stringify(eligibleTokens)}`
-      );
-    } else {
-      logger.error(
-        new Error(
-          `Successfully swapped tokens for address ${body.secretAddress} | ${
+    // const chunkSize = 15;
+    // for (let i = 0; i < eligibleTokens.length; i += chunkSize) {
+    //   const chunk = eligibleTokens.slice(i, i + chunkSize);
+    //   const { error: insertError } = await supabaseClient
+    //     .from("swapped_tokens")
+    //     .insert(
+    //       chunk.map((tokenId) => ({
+    //         token_id: tokenId,
+    //         address: body.secretAddress,
+    //       }))
+    //     );
+
+    //   if (insertError) {
+    //     logger.error(
+    //       insertError,
+    //       `Error inserting tokens into the DB for ${body.secretAddress} | ${
+    //         body.stargazeAddress
+    //       } |  ${JSON.stringify(chunk)}`
+    //     );
+    //   }
+    // }
+    // logger.info(
+    //   `Successfully inserted tokens for address ${body.secretAddress} | ${
+    //     body.stargazeAddress
+    //   } | ${JSON.stringify(eligibleTokens)}`
+    // );
+
+    // const { error: insertError } = await supabaseClient
+    //   .from("swapped_tokens")
+    //   .insert(
+    //     eligibleTokens.map((tokenId) => ({
+    //       token_id: tokenId,
+    //       address: body.secretAddress,
+    //     }))
+    //   );
+    // if (insertError) {
+    //   logger.error(
+    //     insertError,
+    //     `Error inserting tokens in to the DB for ${body.secretAddress} | ${
+    //       body.stargazeAddress
+    //     } |  ${JSON.stringify(eligibleTokens)}`
+    //   );
+    // } else {
+    //   logger.error(
+    //     new Error(
+    //       `Successfully swapped tokens for address ${body.secretAddress} | ${
+    //         body.stargazeAddress
+    //       } | ${JSON.stringify(eligibleTokens)}`
+    //     ),
+    //     `Successfully swapped tokens for address ${
+    //       body.secretAddress
+    //     }  ${JSON.stringify(eligibleTokens)}`
+    //   );
+    // }
+
+    const chunkSize = 15;
+    const maxAttempts = 5; // maximum retry attempts
+    for (let i = 0; i < eligibleTokens.length; i += chunkSize) {
+      const chunk = eligibleTokens.slice(i, i + chunkSize);
+      let attempts = 0;
+      while (attempts < maxAttempts) {
+        const { error: insertError } = await supabaseClient
+          .from("swapped_tokens")
+          .insert(
+            chunk.map((tokenId) => ({
+              token_id: tokenId,
+              address: body.secretAddress,
+            }))
+          );
+        if (!insertError) break; // exit the loop if the insert is successful
+        attempts++;
+        await new Promise((resolve) => setTimeout(resolve, 2500)); // wait for 5 seconds before retrying
+      }
+      if (attempts === maxAttempts) {
+        logger.error(
+          `Failed to insert tokens into the DB for ${body.secretAddress} | ${
             body.stargazeAddress
-          } | ${JSON.stringify(eligibleTokens)}`
-        ),
-        `Successfully swapped tokens for address ${
-          body.secretAddress
-        }  ${JSON.stringify(eligibleTokens)}`
-      );
+          } |  ${JSON.stringify(chunk)} after ${maxAttempts} attempts.`
+        );
+      }
     }
 
     // Return all newly minted tokens
     return res.status(200).json({ tokens: eligibleTokens });
   } catch (error) {
-    console.error(error);
-    const errorMsg = error instanceof Error ? new Error(error.message) : error;
+    const errorMsg =
+      error instanceof Error
+        ? new Error(error.message.substring(0, 150))
+        : error;
     logger.error(
       errorMsg,
       `Error swapping tokens for address ${body.secretAddress} | ${body.stargazeAddress}`
