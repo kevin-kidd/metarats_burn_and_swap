@@ -126,19 +126,23 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     if (insertError) {
       logger.error(
         insertError,
-        `Error inserting tokens in to the DB for ${body.secretAddress}`
+        `Error inserting tokens in to the DB for ${body.secretAddress} | ${
+          body.stargazeAddress
+        } |  ${JSON.stringify(eligibleTokens)}`
       );
-    }
-    logger.error(
-      new Error(
+    } else {
+      logger.error(
+        new Error(
+          `Successfully swapped tokens for address ${body.secretAddress} | ${
+            body.stargazeAddress
+          } | ${JSON.stringify(eligibleTokens)}`
+        ),
         `Successfully swapped tokens for address ${
           body.secretAddress
-        } | ${JSON.stringify(eligibleTokens)}`
-      ),
-      `Successfully swapped tokens for address ${
-        body.secretAddress
-      } | ${JSON.stringify(eligibleTokens)}`
-    );
+        }  ${JSON.stringify(eligibleTokens)}`
+      );
+    }
+
     // Return all newly minted tokens
     return res.status(200).json({ tokens: eligibleTokens });
   } catch (error) {
@@ -146,7 +150,7 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     const errorMsg = error instanceof Error ? new Error(error.message) : error;
     logger.error(
       errorMsg,
-      `Error swapping tokens for address ${body.secretAddress}`
+      `Error swapping tokens for address ${body.secretAddress} | ${body.stargazeAddress}`
     );
     return res.status(500).send(errorMsg);
   }
