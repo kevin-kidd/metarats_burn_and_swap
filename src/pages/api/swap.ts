@@ -17,21 +17,20 @@ import { createClient } from "@supabase/supabase-js";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { createWriteStream } from "pino-logflare";
 
-// create pino-logflare logger
-const logStream = createWriteStream({
-  apiKey: serverEnv.LOGFLARE_API_KEY,
-  sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
-});
-const logger = pino({}, logStream);
-
-const supabaseClient = createClient(
-  serverEnv.SUPABASE_URL,
-  serverEnv.SUPABASE_KEY
-);
-
 const swap = async (req: NextApiRequest, res: NextApiResponse) => {
   const body: RequestBody = req.body as RequestBody;
   try {
+    // create pino-logflare logger
+    const logStream = createWriteStream({
+      apiKey: serverEnv.LOGFLARE_API_KEY,
+      sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
+    });
+    const logger = pino({}, logStream);
+
+    const supabaseClient = createClient(
+      serverEnv.SUPABASE_URL,
+      serverEnv.SUPABASE_KEY
+    );
     if (!body || !body.secretAddress || !body.stargazeAddress || !body.permit) {
       throw new Error("Incorrect arguments provided.");
     }
