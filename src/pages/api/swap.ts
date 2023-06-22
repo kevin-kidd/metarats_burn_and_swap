@@ -15,7 +15,7 @@ import { Permit, SecretNetworkClient, Wallet } from "secretjs";
 import pino from "pino";
 import { createClient } from "@supabase/supabase-js";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
-import { createWriteStream } from "pino-logflare";
+import { logflarePinoVercel } from "pino-logflare";
 
 const supabaseClient = createClient(
   serverEnv.SUPABASE_URL,
@@ -23,15 +23,23 @@ const supabaseClient = createClient(
 );
 
 // create pino-logflare logger
-const logStream = createWriteStream({
+const { stream } = logflarePinoVercel({
   apiKey: serverEnv.LOGFLARE_API_KEY,
   sourceToken: serverEnv.LOGFLARE_SOURCE_TOKEN,
 });
+const logger = pino(
+  {
+    level: "debug",
+    base: {
+      env: process.env.VERCEL_ENV,
+      revision: process.env.VERCEL_GITHUB_COMMIT_SHA,
+    },
+  },
+  stream
+);
 
 const swap = async (req: NextApiRequest, res: NextApiResponse) => {
   const body: RequestBody = req.body as RequestBody;
-
-  const logger = pino({}, logStream);
 
   try {
     if (!body || !body.secretAddress || !body.stargazeAddress || !body.permit) {
