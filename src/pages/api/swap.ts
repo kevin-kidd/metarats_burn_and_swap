@@ -217,7 +217,9 @@ const swap = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(200).json({ tokens: eligibleTokens });
   } catch (error) {
     const errorMsg =
-      error instanceof Error ? new Error(error.message) : JSON.stringify(error);
+      error instanceof Error
+        ? new Error(error.message)
+        : JSON.stringify({ error });
     console.error(errorMsg);
     logger.error(
       { errorMsg },
