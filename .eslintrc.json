@@ -3,18 +3,9 @@
   "parserOptions": {
     "project": "./tsconfig.json"
   },
-  "plugins": ["@typescript-eslint", "prettier"],
+  "plugins": ["@typescript-eslint"],
   "extends": ["next/core-web-vitals", "plugin:@typescript-eslint/recommended"],
   "rules": {
-    "@typescript-eslint/no-unsafe-assignment": "off",
-    "prettier/prettier": [
-      "error",
-      {
-        "trailingComma": "es5",
-        "tabWidth": 2,
-        "semi": true,
-        "useTabs": false
-      }
-    ]
+    "@typescript-eslint/no-unsafe-assignment": "off"
   }
 }
